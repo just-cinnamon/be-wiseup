@@ -1,0 +1,38 @@
+# =============================================================================
+# Multi-stage Dockerfile for WiseUp Backend (GraalVM Native Image)
+# Use this when you need sub-second startup times (e.g., serverless / Cloud Run).
+# Build time is significantly longer (~5–10 min) but the resulting binary is tiny.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1 – Native compilation
+# ---------------------------------------------------------------------------
+FROM ghcr.io/graalvm/native-image:21 AS native-builder
+
+WORKDIR /build
+
+COPY pom.xml .
+COPY .mvn/ .mvn/
+COPY mvnw .
+RUN chmod +x mvnw
+
+RUN ./mvnw dependency:go-offline -q
+
+COPY src/ src/
+RUN ./mvnw package -Pnative -DskipTests -q
+
+# ---------------------------------------------------------------------------
+# Stage 2 – Minimal runtime (distroless / scratch-based)
+# ---------------------------------------------------------------------------
+FROM gcr.io/distroless/base-debian12:nonroot AS runtime
+
+WORKDIR /app
+
+COPY --from=native-builder /build/target/*-runner ./application
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/busybox/wget", "-qO-", "http://localhost:8080/api/health/live", "||", "exit", "1"]
+
+ENTRYPOINT ["/app/application", "-Dquarkus.http.host=0.0.0.0"]

@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL (local dev only)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       wiseup
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # WiseUp API
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL:          jdbc:postgresql://postgres:5432/wiseup
+      DATABASE_USER:         postgres
+      DATABASE_PASSWORD:     postgres
+      CORS_ORIGINS:          http://localhost:5173
+      UPSTREAM_BASE_URL:     https://www.pornhub.com/webmasters
+      UPSTREAM_TIMEOUT_MS:   8000
+      CACHE_TTL_SECONDS:     600
+      SESSION_TTL_HOURS:     12
+      LOGIN_MAX_ATTEMPTS:    5
+      LOGIN_LOCK_MINUTES:    15
+      SEED_USERS:            ${SEED_USERS:-}
+      RECAPTCHA_SECRET:      ${RECAPTCHA_SECRET:-}
+      LEGAL_VERSION_TERMOS:       2026-11-05
+      LEGAL_VERSION_PRIVACIDADE:  2026-11-05
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health/live || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:
