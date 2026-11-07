@@ -10,6 +10,7 @@ type safety, and observability.
 
 - [Architecture](#architecture)
 - [API Endpoints](#api-endpoints)
+- [API Collection & Testing](#api-collection--testing)
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [Docker](#docker)
@@ -91,6 +92,19 @@ src/main/java/com/wiseup/api/
 | `GET`  | `/api/reports/blocked` | Blocked videos list |
 | `POST` | `/api/reports/{id}/review` | Review decision `{ procede: bool }` |
 | `POST` | `/api/reports/block` | Manual block `{ videoId }` |
+
+---
+
+## API Collection & Testing
+
+Two ready-to-use collection formats are included:
+
+1. **Postman / Insomnia / Bruno**:
+   - [`wiseup-api.postman_collection.json`](file:///Users/checkmaathy/dev/wiseup/be-wiseup/wiseup-api.postman_collection.json) – Full v2.1 collection covering all 16 endpoints with auto-token extraction on login.
+   - [`wiseup-api.postman_environment.json`](file:///Users/checkmaathy/dev/wiseup/be-wiseup/wiseup-api.postman_environment.json) – Pre-configured environment file (`baseUrl`, `authToken`, `adminToken`, etc.).
+
+2. **VS Code & IntelliJ IDEA (REST Client)**:
+   - [`requests.http`](file:///Users/checkmaathy/dev/wiseup/be-wiseup/requests.http) – Plaintext HTTP file with request chaining: run requests with one click directly inside your IDE.
 
 ---
 

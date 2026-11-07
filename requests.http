@@ -1,0 +1,145 @@
+### ====================================================================
+### WiseUp Backend API – HTTP Client Requests (IntelliJ / VS Code REST Client)
+### ====================================================================
+
+@baseUrl = http://localhost:8080
+@email = ana@wiseup.test
+@password = segredo123
+
+### --------------------------------------------------------------------
+### 1. HEALTH
+### --------------------------------------------------------------------
+
+### Liveness probe
+GET {{baseUrl}}/api/health/live
+Accept: application/json
+
+### Readiness probe
+GET {{baseUrl}}/api/health/ready
+Accept: application/json
+
+### --------------------------------------------------------------------
+### 2. AUTHENTICATION
+### --------------------------------------------------------------------
+
+### Login (captures token into @authToken variable)
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "captchaToken": ""
+}
+
+### Store token dynamically from response
+@authToken = {{login.response.body.token}}
+
+### Get current session user (/auth/me)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### Accept Gate (Adult self-declaration + Terms acceptance)
+POST {{baseUrl}}/api/auth/accept
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### Logout
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### Delete Account (LGPD erasure)
+DELETE {{baseUrl}}/api/auth/me
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
+### --------------------------------------------------------------------
+### 3. CATALOGUE (Requires valid session + adult verified + terms accepted)
+### --------------------------------------------------------------------
+
+### Get Home Sections (Featured, Top10, rows)
+GET {{baseUrl}}/api/home
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### List / Search Videos
+GET {{baseUrl}}/api/videos?q=&category=&ordering=mostviewed&period=weekly&page=1
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### Get Video Detail by ID
+@videoId = ph634f1e469e8b7
+GET {{baseUrl}}/api/videos/{{videoId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### Get Categories
+GET {{baseUrl}}/api/categories
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
+### --------------------------------------------------------------------
+### 4. MODERATION & REPORTS
+### --------------------------------------------------------------------
+
+### Get Report Reasons
+GET {{baseUrl}}/api/reports/reasons
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### Submit a Report (Reasons: menor | sem_consentimento | violencia | direitos_autorais | outro)
+# @name createReport
+POST {{baseUrl}}/api/reports
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "videoId": "{{videoId}}",
+  "reason": "menor",
+  "note": "Denúncia de teste via HTTP Client"
+}
+
+@reportId = {{createReport.response.body.id}}
+
+### --------------------------------------------------------------------
+### 5. ADMIN MODERATION (Requires user with is_admin = true)
+### --------------------------------------------------------------------
+
+@adminToken = {{authToken}}
+
+### Admin: List Open Reports
+GET {{baseUrl}}/api/reports/open
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### Admin: List Blocked Videos
+GET {{baseUrl}}/api/reports/blocked
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### Admin: Review Report (procede: true = keep/block video; false = unblock if single report)
+POST {{baseUrl}}/api/reports/{{reportId}}/review
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "procede": true
+}
+
+### Admin: Direct Manual Block (no report needed)
+POST {{baseUrl}}/api/reports/block
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "videoId": "{{videoId}}"
+}

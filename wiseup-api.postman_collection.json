@@ -1,0 +1,530 @@
+{
+  "info": {
+    "_postman_id": "8f3b2190-6c9a-4e55-9a8b-1e24bc684f01",
+    "name": "WiseUp Backend API",
+    "description": "Comprehensive collection for the WiseUp Backend API (Java 21 · Quarkus 3).\n\nIncludes Health, Authentication, Catalogue, and Moderation / Reports endpoints.\n\nTokens are automatically captured from the Login response and saved into the `{{authToken}}` environment variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "videoId",
+      "value": "ph634f1e469e8b7",
+      "type": "string"
+    },
+    {
+      "key": "reportId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/live",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "live"]
+            },
+            "description": "Checks if the application process is running and alive."
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health", "ready"]
+            },
+            "description": "Checks if database and critical dependencies are ready to accept traffic."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var data = pm.response.json();",
+                  "    if (data.token) {",
+                  "        pm.collectionVariables.set('authToken', data.token);",
+                  "        pm.environment.set('authToken', data.token);",
+                  "        console.log('authToken updated successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ana@wiseup.test\",\n  \"password\": \"segredo123\",\n  \"captchaToken\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticates user with email and password. Automatically stores the returned Bearer token in the {{authToken}} variable."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Session (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Returns information about the logged-in user, age verification status, and terms accepted."
+          },
+          "response": []
+        },
+        {
+          "name": "Accept Gate (Age Declaration + Terms)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/accept",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "accept"]
+            },
+            "description": "Declares user is 18+ and accepts current versions of Terms and Privacy documents in one atomic operation."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Invalidates the active session token in the database."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Account (LGPD)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Permanently deletes user account and cascading sessions (Right to Erasure under LGPD)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Catalogue",
+      "item": [
+        {
+          "name": "Get Home",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/home",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "home"]
+            },
+            "description": "Fetches the full home screen structure (Featured, Top 10, curated rows) via parallel virtual thread fetching."
+          },
+          "response": []
+        },
+        {
+          "name": "List / Search Videos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos?q=&category=&ordering=mostviewed&period=weekly&page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "",
+                  "description": "Search keyword (max 80 chars)"
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "Category slug filter"
+                },
+                {
+                  "key": "ordering",
+                  "value": "mostviewed",
+                  "description": "Ordering: featured | newest | mostviewed | rating"
+                },
+                {
+                  "key": "period",
+                  "value": "weekly",
+                  "description": "Period: weekly | monthly | alltime"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (1 to 50)"
+                }
+              ]
+            },
+            "description": "Searches and filters catalog videos with pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Video Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/videos/{{videoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "videos", "{{videoId}}"]
+            },
+            "description": "Returns full details and embed URL for a specific media item. Blocked items return 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            },
+            "description": "Lists all available video categories (cached 24h)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Moderation & Reports",
+      "item": [
+        {
+          "name": "Get Report Reasons",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/reasons",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "reasons"]
+            },
+            "description": "Returns the list of valid report reasons ('menor', 'sem_consentimento', 'violencia', 'direitos_autorais', 'outro')."
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Report",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var data = pm.response.json();",
+                  "    if (data.id) {",
+                  "        pm.collectionVariables.set('reportId', data.id);",
+                  "        pm.environment.set('reportId', data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"{{videoId}}\",\n  \"reason\": \"menor\",\n  \"note\": \"Conteúdo inadequado denunciado via API collection.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"]
+            },
+            "description": "Submits a moderation report. High-priority reasons ('menor', 'sem_consentimento') trigger an immediate block before admin review."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - List Open Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/open",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "open"]
+            },
+            "description": "Lists open pending reports (oldest first). Requires is_admin = true."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - List Blocked Videos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/blocked",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "blocked"]
+            },
+            "description": "Lists currently blocked videos and reasons. Requires is_admin = true."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Review Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"procede\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/{{reportId}}/review",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "{{reportId}}", "review"]
+            },
+            "description": "Admin review of a report. If 'procede' is true, video remains/is blocked. If false, unblocks only if this was the sole blocking report."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin - Manual Block Video",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"{{videoId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/block",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "block"]
+            },
+            "description": "Direct manual block of a video by an administrator without a report."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
