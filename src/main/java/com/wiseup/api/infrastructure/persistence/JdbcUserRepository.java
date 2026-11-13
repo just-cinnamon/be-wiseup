@@ -187,7 +187,7 @@ public class JdbcUserRepository implements UserRepository {
                                          String termosVersion,
                                          String privacidadeVersion) {
         final String sql = """
-                SELECT u.id, u.email, u.age_verified_at, u.is_admin,
+                SELECT u.id, u.email, u.age_verified_at, u.is_admin, u.is_guest,
                        s.expires_at,
                        (SELECT COUNT(*) FROM terms_acceptances ta
                          WHERE ta.user_id = u.id
@@ -212,7 +212,8 @@ public class JdbcUserRepository implements UserRepository {
                         toOdt(rs, "expires_at"),
                         toOdt(rs, "age_verified_at"),
                         rs.getInt("accepted_count"),
-                        rs.getBoolean("is_admin")
+                        rs.getBoolean("is_admin"),
+                        rs.getBoolean("is_guest")
                 );
                 return Optional.of(session);
             }
@@ -243,6 +244,81 @@ public class JdbcUserRepository implements UserRepository {
         }
     }
 
+    @Override
+    public Session createGuestSession(String tokenHash, String clientIp, OffsetDateTime now,
+                                      OffsetDateTime expiresAt, Map<String, String> versions) {
+        final String userId = UUID.randomUUID().toString();
+        final String guestEmail = "guest_" + userId + "@visitor.wiseup.test";
+        final String dummyHash = "DISABLED_GUEST_ACCOUNT";
+
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try {
+                // 1. Insert guest user
+                try (PreparedStatement ps = c.prepareStatement("""
+                        INSERT INTO users (id, email, password_hash, created_at, failed_count,
+                                           age_verified_at, age_method, age_declared_ip, is_admin, is_guest)
+                        VALUES (?, ?, ?, ?, 0, ?, 'autodeclaracao', ?, FALSE, TRUE)
+                        """)) {
+                    ps.setString(1, userId);
+                    ps.setString(2, guestEmail);
+                    ps.setString(3, dummyHash);
+                    ps.setObject(4, now);
+                    ps.setObject(5, now);
+                    ps.setString(6, clientIp);
+                    ps.executeUpdate();
+                }
+
+                // 2. Insert terms acceptances for all current versions
+                for (Map.Entry<String, String> entry : versions.entrySet()) {
+                    try (PreparedStatement ps = c.prepareStatement("""
+                            INSERT INTO terms_acceptances (user_id, document, version, accepted_at)
+                            VALUES (?, ?, ?, ?)
+                            """)) {
+                        ps.setString(1, userId);
+                        ps.setString(2, entry.getKey());
+                        ps.setString(3, entry.getValue());
+                        ps.setObject(4, now);
+                        ps.executeUpdate();
+                    }
+                }
+
+                // 3. Insert active session
+                try (PreparedStatement ps = c.prepareStatement("""
+                        INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
+                        VALUES (?, ?, ?, ?)
+                        """)) {
+                    ps.setString(1, tokenHash);
+                    ps.setString(2, userId);
+                    ps.setObject(3, now);
+                    ps.setObject(4, expiresAt);
+                    ps.executeUpdate();
+                }
+
+                c.commit();
+
+                return new Session(
+                        tokenHash,
+                        userId,
+                        guestEmail,
+                        now,
+                        expiresAt,
+                        now,
+                        versions.size(),
+                        false,
+                        true
+                );
+            } catch (SQLException ex) {
+                c.rollback();
+                throw ex;
+            } finally {
+                c.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new PersistenceException("createGuestSession", e);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Age gate + Terms
     // -------------------------------------------------------------------------
@@ -267,17 +343,23 @@ public class JdbcUserRepository implements UserRepository {
                     ps.executeUpdate();
                 }
 
-                // Terms acceptances – idempotent via ON CONFLICT
+                // Terms acceptances – idempotent
                 for (Map.Entry<String, String> entry : versions.entrySet()) {
                     try (PreparedStatement ps = c.prepareStatement("""
                             INSERT INTO terms_acceptances (user_id, document, version, accepted_at)
-                            VALUES (?, ?, ?, ?)
-                            ON CONFLICT (user_id, document, version) DO NOTHING
+                            SELECT ?, ?, ?, ?
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM terms_acceptances
+                                 WHERE user_id = ? AND document = ? AND version = ?
+                            )
                             """)) {
                         ps.setString(1, userId);
                         ps.setString(2, entry.getKey());
                         ps.setString(3, entry.getValue());
                         ps.setObject(4, at);
+                        ps.setString(5, userId);
+                        ps.setString(6, entry.getKey());
+                        ps.setString(7, entry.getValue());
                         ps.executeUpdate();
                     }
                 }
@@ -364,7 +446,8 @@ public class JdbcUserRepository implements UserRepository {
                 toOdt(rs, "age_verified_at"),
                 rs.getString("age_method"),
                 rs.getString("age_declared_ip"),
-                rs.getBoolean("is_admin")
+                rs.getBoolean("is_admin"),
+                rs.getBoolean("is_guest")
         );
     }
 

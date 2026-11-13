@@ -61,6 +61,18 @@ public interface UserRepository {
 
     void removeExpiredSessions(OffsetDateTime before);
 
+    /**
+     * Atomically creates an anonymous visitor account, records age verification and terms acceptances,
+     * and establishes an active session.
+     */
+    com.wiseup.api.domain.model.Session createGuestSession(
+            String tokenHash,
+            String clientIp,
+            OffsetDateTime now,
+            OffsetDateTime expiresAt,
+            java.util.Map<String, String> versions
+    );
+
     // ---- Age gate ----
 
     /**

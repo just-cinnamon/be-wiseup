@@ -9,5 +9,10 @@ public record SessionUser(
         String email,
         boolean ageVerified,
         boolean termsAccepted,
-        boolean isAdmin
-) {}
+        boolean isAdmin,
+        boolean isGuest
+) {
+    public SessionUser(String id, String email, boolean ageVerified, boolean termsAccepted, boolean isAdmin) {
+        this(id, email, ageVerified, termsAccepted, isAdmin, false);
+    }
+}

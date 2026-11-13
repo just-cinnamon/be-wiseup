@@ -14,8 +14,16 @@ public record Session(
         OffsetDateTime expiresAt,
         OffsetDateTime ageVerifiedAt,
         int acceptedTermsCount,   // how many current-version documents are accepted
-        boolean isAdmin
+        boolean isAdmin,
+        boolean isGuest
 ) {
+
+    public Session(String tokenHash, String userId, String email, OffsetDateTime createdAt,
+                   OffsetDateTime expiresAt, OffsetDateTime ageVerifiedAt,
+                   int acceptedTermsCount, boolean isAdmin) {
+        this(tokenHash, userId, email, createdAt, expiresAt, ageVerifiedAt,
+                acceptedTermsCount, isAdmin, false);
+    }
 
     public boolean isExpired(OffsetDateTime now) {
         return !expiresAt.isAfter(now);

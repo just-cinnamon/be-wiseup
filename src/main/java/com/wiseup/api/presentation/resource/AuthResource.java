@@ -19,7 +19,6 @@ import jakarta.ws.rs.core.*;
  */
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
 
     @Inject
@@ -45,6 +44,7 @@ public class AuthResource {
      */
     @POST
     @Path("/login")
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response login(LoginRequest req, @Context ContainerRequestContext ctx) {
         String clientIp = resolveClientIp(headers);
         LoginResponse result = authService.login(req, clientIp);
@@ -61,28 +61,20 @@ public class AuthResource {
 
     /**
      * POST /api/auth/guest
-     * Open (no auth required). Opens a session without an account for whoever
-     * has just declared being 18 or older in the +18 gate – which, since the
-     * front-end dropped login (ADR-0023 of be-wiseup-one), is the only entrance
-     * to the site.
-     *
-     * <p>Takes no body: there is nothing to send. The declaration itself is the
-     * request, and the IP and timestamp come from the server.
+     * Open (no auth required).
+     * Opens an anonymous visitor session with adult self-declaration and current terms
+     * acceptances recorded atomically.
      */
     @POST
     @Path("/guest")
-    public Response guest() {
+    public Response guest(@Context ContainerRequestContext ctx) {
         String clientIp = resolveClientIp(headers);
-
-        // Open endpoint that writes a row per call – see GuestThrottle.
-        guestThrottle.check(clientIp);
-
-        LoginResponse result = authService.guest(clientIp);
+        LoginResponse result = authService.startGuestSession(clientIp);
 
         // Record access log (Marco Civil da Internet art.15) – best-effort
         try {
             userRepository.recordAccessLog(result.user().id(), clientIp);
-        } catch (Exception ignored) { /* access-log failure must not block entry */ }
+        } catch (Exception ignored) { /* access-log failure must not block guest session */ }
 
         return Response.ok(result)
                 .cacheControl(noStore())

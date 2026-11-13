@@ -17,19 +17,16 @@ public record User(
         OffsetDateTime ageVerifiedAt,
         String ageMethod,
         String ageDeclaredIp,
-        boolean isAdmin
+        boolean isAdmin,
+        boolean isGuest
 ) {
 
-    /**
-     * Prefix of the synthetic e-mail every guest row carries (see the V2
-     * migration). It exists so a guest can live in a table whose `email` is
-     * NOT NULL and UNIQUE, and it never leaves the API – {@code AuthService}
-     * strips it before building a {@link com.wiseup.api.application.dto.SessionUser}.
-     */
-    public static final String GUEST_EMAIL_PREFIX = "guest:";
-
-    /** Placeholder stored in `password_hash`: no password can ever match it. */
-    public static final String GUEST_PASSWORD_HASH = "!guest";
+    public User(String id, String email, String passwordHash, OffsetDateTime createdAt,
+                int failedCount, OffsetDateTime lockedUntil, OffsetDateTime ageVerifiedAt,
+                String ageMethod, String ageDeclaredIp, boolean isAdmin) {
+        this(id, email, passwordHash, createdAt, failedCount, lockedUntil, ageVerifiedAt,
+                ageMethod, ageDeclaredIp, isAdmin, false);
+    }
 
     /** Whether the account is currently locked for brute-force protection. */
     public boolean isLocked(OffsetDateTime now) {
