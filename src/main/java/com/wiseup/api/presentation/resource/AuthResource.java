@@ -3,6 +3,7 @@ package com.wiseup.api.presentation.resource;
 import com.wiseup.api.application.dto.*;
 import com.wiseup.api.domain.repository.UserRepository;
 import com.wiseup.api.domain.service.AuthService;
+import com.wiseup.api.infrastructure.security.GuestThrottle;
 import com.wiseup.api.presentation.filter.AuthFilter;
 import com.wiseup.api.presentation.filter.RequireAuth;
 import jakarta.inject.Inject;
@@ -25,6 +26,9 @@ public class AuthResource {
 
     @Inject
     UserRepository userRepository;
+
+    @Inject
+    GuestThrottle guestThrottle;
 
     @Context
     HttpHeaders headers;

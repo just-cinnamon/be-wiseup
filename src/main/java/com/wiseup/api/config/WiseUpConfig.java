@@ -24,6 +24,8 @@ public interface WiseUpConfig {
 
     Captcha captcha();
 
+    Guest guest();
+
     @WithName("seed-users")
     Optional<String> seedUsers();
 
@@ -76,6 +78,12 @@ public interface WiseUpConfig {
 
         @WithName("verify-url")
         String verifyUrl();
+    }
+
+    interface Guest {
+        /** Guest sessions allowed per IP per hour; 0 disables the limit. */
+        @WithName("max-per-hour")
+        int maxPerHour();
     }
 
     interface Legal {

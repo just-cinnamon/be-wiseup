@@ -117,6 +117,29 @@ public class AuthService {
     }
 
     // -------------------------------------------------------------------------
+    // Guest session (entry without an account)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Opens a session for whoever has just declared being 18 or older in the
+     * +18 gate. There is no account, no e-mail and no password involved.
+     *
+     * <p>The declaration is recorded server-side with date and IP, exactly like
+     * an account's would be (ADR-0019 equivalent) – what does not exist is
+     * someone to pin it on later. Creating the guest and recording the
+     * declaration happen in one transaction, so a session never starts
+     * half-declared.
+     *
+     * <p>The front-end has no login screen any more (ADR-0023 of
+     * be-wiseup-one), so this is the only way a session is born.
+     */
+    public LoginResponse guest(String clientIp) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        User guest = users.createGuest(clientIp, now, config.legal().versions());
+        return startSession(guest, now);
+    }
+
+    // -------------------------------------------------------------------------
     // Session retrieval (called per-request by the security filter)
     // -------------------------------------------------------------------------
 
@@ -239,11 +262,21 @@ public class AuthService {
 
         boolean termsAccepted = hasAcceptedCurrentTerms(user.id());
         return new LoginResponse(
-                new SessionUser(user.id(), user.email(),
+                new SessionUser(user.id(), publicEmail(user.email()),
                         user.isAgeVerified(), termsAccepted, user.isAdmin()),
                 rawToken,
                 expiresAt.toString()
         );
+    }
+
+    /**
+     * The e-mail as the outside world may see it. A guest's is synthetic (see
+     * the V2 migration) and means nothing to anyone, so it leaves as null and
+     * {@code SessionUser} drops it from the JSON – better than shipping a fake
+     * identity the next reader would take for a real one.
+     */
+    private static String publicEmail(String email) {
+        return email == null || email.startsWith(User.GUEST_EMAIL_PREFIX) ? null : email;
     }
 
     private boolean hasAcceptedCurrentTerms(String userId) {

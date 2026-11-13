@@ -6,6 +6,7 @@ target/
 .env
 .env.*
 !.env.example
+!.env.railway.example
 *.iml
 .idea/
 .vscode/

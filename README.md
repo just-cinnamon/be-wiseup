@@ -14,6 +14,7 @@ type safety, and observability.
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [Docker](#docker)
+- [Deploy (Railway)](#deploy-railway)
 - [Database](#database)
 - [Security](#security)
 - [Scheduled Jobs](#scheduled-jobs)
@@ -57,6 +58,7 @@ src/main/java/com/wiseup/api/
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET`  | `/api/health` | Health check (SmallRye Health) |
+| `POST` | `/api/auth/guest` | **Guest session** → `{ user, token, expiresAt }`. No body. Records the adult self-declaration (date + IP) and accepts the current legal versions in one transaction. Rate-limited per IP (`GUEST_MAX_PER_HOUR`) |
 | `POST` | `/api/auth/login` | Login → `{ user, token, expiresAt }` |
 
 ### Auth-required (Bearer token)
@@ -144,7 +146,8 @@ docker compose up postgres -d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `jdbc:postgresql://localhost:5432/wiseup` | PostgreSQL JDBC URL |
+| `PORT` | `8080` | HTTP port (injected by the cloud provider, e.g. Railway) |
+| `DATABASE_URL` | `jdbc:postgresql://localhost:5432/wiseup` | PostgreSQL JDBC URL (must be a `jdbc:` URL, not `postgresql://`) |
 | `DATABASE_USER` | `postgres` | DB username |
 | `DATABASE_PASSWORD` | `postgres` | DB password |
 | `CORS_ORIGINS` | `http://localhost:5173` | Allowed CORS origins (comma-separated) |
@@ -155,6 +158,7 @@ docker compose up postgres -d
 | `LOGIN_MAX_ATTEMPTS` | `5` | Failed attempts before lock |
 | `LOGIN_LOCK_MINUTES` | `15` | Lock duration |
 | `SEED_USERS` | — | `email:pass,email:pass` pairs created at boot |
+| `GUEST_MAX_PER_HOUR` | `30` | Guest sessions allowed per IP per hour; `0` disables the limit |
 | `RECAPTCHA_SECRET` | — | Google reCAPTCHA v2 secret; leave empty to disable |
 | `LEGAL_VERSION_TERMOS` | `2026-11-05` | Current Terms version |
 | `LEGAL_VERSION_PRIVACIDADE` | `2026-11-05` | Current Privacy Policy version |
@@ -184,6 +188,64 @@ docker build -f Dockerfile.native -t be-wiseup:native .
 ```bash
 docker compose up --build
 ```
+
+---
+
+## Deploy (Railway)
+
+A API sobe no Railway a partir do `Dockerfile` (JVM mode). O arquivo
+[`railway.json`](railway.json) já fixa builder, health check e política de
+restart — o painel não precisa ser configurado à mão para isso.
+
+### 1. Serviços necessários
+
+O projeto Railway precisa de **dois** serviços no mesmo environment:
+
+| Serviço | Origem |
+|---------|--------|
+| `be-wiseup` | Este repositório (branch `develop`), builder Dockerfile |
+| `Postgres` | Template oficial "PostgreSQL" do Railway |
+
+A API fala com o banco pela **rede privada** do projeto (`*.railway.internal`),
+então o Postgres não precisa de domínio público.
+
+### 2. Variáveis de ambiente
+
+Copie [`.env.railway.example`](.env.railway.example) para o **Raw Editor** de
+*Variables* do serviço `be-wiseup` e ajuste os três itens marcados no arquivo
+(`CORS_ORIGINS`, `SEED_USERS` e o nome do serviço Postgres nas referências).
+
+Dois pontos que costumam quebrar o deploy:
+
+- **`PORT`** — o Railway roteia o tráfego para a porta que a aplicação escuta.
+  `quarkus.http.port=${PORT:8080}` já lê essa variável; mantenha `PORT=8080`
+  definido para o valor ser determinístico.
+- **`DATABASE_URL`** — o Railway publica a URL do Postgres no formato
+  `postgresql://user:pass@host/db`, que o driver JDBC **não** aceita. Por isso a
+  URL é remontada no formato `jdbc:postgresql://host:port/db` a partir de
+  `${{Postgres.PGHOST}}`, `${{Postgres.PGPORT}}` e `${{Postgres.PGDATABASE}}`,
+  com usuário e senha em variáveis separadas.
+
+### 3. Primeiro deploy
+
+1. `git push origin develop` — o Railway builda automaticamente a cada push.
+2. Acompanhe *Deploy Logs*. O build do Quarkus leva alguns minutos (download das
+   dependências Maven na primeira vez).
+3. O Flyway roda `V1__initial_schema.sql` no boot
+   (`quarkus.flyway.migrate-at-start=true`); não há passo manual de migração.
+4. Gere o domínio público em *Settings → Networking → Generate Domain*
+   (target port `8080`).
+5. Valide: `curl https://<dominio>/api/health/live` → `{"status":"UP"}`.
+
+### 4. Pós-deploy
+
+- Promova o usuário seed a admin no banco (não existe endpoint para isso):
+  ```sql
+  UPDATE users SET is_admin = true WHERE email = '<seu-email>';
+  ```
+- Aponte o front-end (`be-wiseup-one`) para a API publicada:
+  `VITE_API_BASE_URL=https://<dominio>/api`, e inclua a URL do front em
+  `CORS_ORIGINS` na API.
 
 ---
 

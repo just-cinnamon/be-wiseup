@@ -18,6 +18,25 @@ public interface UserRepository {
     /** Creates and returns the new user (ID assigned inside). */
     User create(String email, String passwordHash);
 
+    /**
+     * Creates a guest: a user row with no usable credentials, with the adult
+     * self-declaration and the term acceptances already recorded – all in one
+     * transaction, so a guest never exists in a half-declared state.
+     *
+     * @param ip       client IP, stored with the declaration (Marco Civil)
+     * @param at       declaration timestamp
+     * @param versions current legal versions, one acceptance row each
+     */
+    User createGuest(String ip, OffsetDateTime at, java.util.Map<String, String> versions);
+
+    /**
+     * Deletes guest rows that have no session left – their session expired or
+     * they logged out. Accounts are never touched.
+     *
+     * @return number of rows removed
+     */
+    int purgeOrphanGuests();
+
     /** Delete the user; sessions cascade by DB constraint. */
     boolean remove(String userId);
 

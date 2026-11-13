@@ -77,16 +77,22 @@ public class MediaProviderClient {
     /**
      * Retrieves the list of deleted content IDs from the upstream provider.
      * Returns an empty list (not an exception) on network/format errors.
+     *
+     * <p>The upstream endpoint is {@code deleted_videos} (not {@code deleted},
+     * which answers 404), and each item carries the id under {@code vkey}:
+     * {@code {"videos":[{"vkey":"...","deleted_on":"..."}]}}. The
+     * {@code video_id} fallback is kept for the shape used elsewhere in the API.
      */
     public List<String> deletedVideos(int page) {
         try {
-            JsonNode data = get("deleted", Map.of("page", String.valueOf(page)));
+            JsonNode data = get("deleted_videos", Map.of("page", String.valueOf(page)));
             List<String> ids = new ArrayList<>();
             if (data != null && data.has("videos") && data.get("videos").isArray()) {
                 for (JsonNode item : data.get("videos")) {
                     String vid = item.isTextual()
                             ? item.asText()
-                            : (item.has("video_id") ? item.get("video_id").asText() : null);
+                            : (item.has("vkey") ? item.get("vkey").asText()
+                            : (item.has("video_id") ? item.get("video_id").asText() : null));
                     if (vid != null && !vid.isBlank()) ids.add(vid);
                 }
             }
