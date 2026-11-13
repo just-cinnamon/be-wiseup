@@ -20,6 +20,17 @@ public record User(
         boolean isAdmin
 ) {
 
+    /**
+     * Prefix of the synthetic e-mail every guest row carries (see the V2
+     * migration). It exists so a guest can live in a table whose `email` is
+     * NOT NULL and UNIQUE, and it never leaves the API – {@code AuthService}
+     * strips it before building a {@link com.wiseup.api.application.dto.SessionUser}.
+     */
+    public static final String GUEST_EMAIL_PREFIX = "guest:";
+
+    /** Placeholder stored in `password_hash`: no password can ever match it. */
+    public static final String GUEST_PASSWORD_HASH = "!guest";
+
     /** Whether the account is currently locked for brute-force protection. */
     public boolean isLocked(OffsetDateTime now) {
         return lockedUntil != null && lockedUntil.isAfter(now);

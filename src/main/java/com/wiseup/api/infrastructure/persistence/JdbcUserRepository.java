@@ -75,6 +75,69 @@ public class JdbcUserRepository implements UserRepository {
     }
 
     @Override
+    public User createGuest(String ip, OffsetDateTime at, Map<String, String> versions) {
+        final String id = UUID.randomUUID().toString();
+        try (Connection c = ds.getConnection()) {
+            c.setAutoCommit(false);
+            try {
+                try (PreparedStatement ps = c.prepareStatement("""
+                        INSERT INTO users (id, email, password_hash, created_at, failed_count,
+                                           age_verified_at, age_method, age_declared_ip, is_guest)
+                        VALUES (?, ?, ?, ?, 0, ?, 'autodeclaracao', ?, TRUE)
+                        """)) {
+                    ps.setString(1, id);
+                    ps.setString(2, User.GUEST_EMAIL_PREFIX + id);
+                    ps.setString(3, User.GUEST_PASSWORD_HASH);
+                    ps.setObject(4, at);
+                    ps.setObject(5, at);
+                    ps.setString(6, ip);
+                    ps.executeUpdate();
+                }
+
+                // The gate is one click: age and both documents are accepted together.
+                for (Map.Entry<String, String> entry : versions.entrySet()) {
+                    try (PreparedStatement ps = c.prepareStatement("""
+                            INSERT INTO terms_acceptances (user_id, document, version, accepted_at)
+                            VALUES (?, ?, ?, ?)
+                            """)) {
+                        ps.setString(1, id);
+                        ps.setString(2, entry.getKey());
+                        ps.setString(3, entry.getValue());
+                        ps.setObject(4, at);
+                        ps.executeUpdate();
+                    }
+                }
+
+                c.commit();
+            } catch (SQLException ex) {
+                c.rollback();
+                throw ex;
+            } finally {
+                c.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new PersistenceException("createGuest", e);
+        }
+        return findById(id).orElseThrow();
+    }
+
+    @Override
+    public int purgeOrphanGuests() {
+        final String sql = """
+                DELETE FROM users
+                 WHERE is_guest = TRUE
+                   AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.user_id = users.id)
+                """;
+        try (Connection c = ds.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            // Housekeeping: a failure here must never break a request.
+            LOG.error("purgeOrphanGuests failed: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    @Override
     public boolean remove(String userId) {
         final String sql = "DELETE FROM users WHERE id = ?";
         try (Connection c = ds.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {

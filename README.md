@@ -58,6 +58,7 @@ src/main/java/com/wiseup/api/
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET`  | `/api/health` | Health check (SmallRye Health) |
+| `POST` | `/api/auth/guest` | **Guest session** → `{ user, token, expiresAt }`. No body. Records the adult self-declaration (date + IP) and accepts the current legal versions in one transaction. Rate-limited per IP (`GUEST_MAX_PER_HOUR`) |
 | `POST` | `/api/auth/login` | Login → `{ user, token, expiresAt }` |
 
 ### Auth-required (Bearer token)
@@ -157,6 +158,7 @@ docker compose up postgres -d
 | `LOGIN_MAX_ATTEMPTS` | `5` | Failed attempts before lock |
 | `LOGIN_LOCK_MINUTES` | `15` | Lock duration |
 | `SEED_USERS` | — | `email:pass,email:pass` pairs created at boot |
+| `GUEST_MAX_PER_HOUR` | `30` | Guest sessions allowed per IP per hour; `0` disables the limit |
 | `RECAPTCHA_SECRET` | — | Google reCAPTCHA v2 secret; leave empty to disable |
 | `LEGAL_VERSION_TERMOS` | `2026-11-05` | Current Terms version |
 | `LEGAL_VERSION_PRIVACIDADE` | `2026-11-05` | Current Privacy Policy version |

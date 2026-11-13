@@ -46,6 +46,27 @@ public class ScheduledJobs {
     }
 
     /**
+     * Remove guest rows whose session is already gone – expired or logged out.
+     * Runs hourly, ten minutes after boot.
+     *
+     * <p>Guests are created one per entry (POST /api/auth/guest), so without
+     * this the table would only grow. Expired sessions are deleted on every
+     * authenticated request, which is what leaves a guest orphaned and makes it
+     * collectable here. Accounts are never touched.
+     */
+    @Scheduled(every = "1h", delay = 10, delayUnit = java.util.concurrent.TimeUnit.MINUTES)
+    void purgeOrphanGuests() {
+        try {
+            int purged = userRepository.purgeOrphanGuests();
+            if (purged > 0) {
+                LOG.info("Guest purge: " + purged + " guest(s) without a session removed.");
+            }
+        } catch (Exception e) {
+            LOG.error("Guest purge failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Sync deleted videos from the upstream. Runs every 6 hours (configurable).
      * Also calls {@link ModerationService#refresh()} so multi-instance deployments
      * pick up blocks made by other replicas.

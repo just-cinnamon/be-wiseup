@@ -31,6 +31,7 @@ public class GlobalExceptionMapper implements ExceptionMapper<Throwable> {
             case jakarta.ws.rs.NotFoundException e -> error(404, "ROUTE_NOT_FOUND", "Rota não encontrada.");
             case TooManyAttemptsException e  -> error(429, "TOO_MANY_ATTEMPTS", e.getMessage());
             case TooManyReportsException e   -> error(429, "TOO_MANY_REPORTS",  e.getMessage());
+            case TooManyGuestsException e    -> error(429, "TOO_MANY_GUESTS",   e.getMessage());
             case MediaProviderClient.UpstreamException e -> error(502, "UPSTREAM_UNAVAILABLE",
                     "Não foi possível carregar os vídeos agora.");
             case WebApplicationException e   -> error(e.getResponse().getStatus(), "HTTP_ERROR", e.getMessage());

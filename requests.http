@@ -22,6 +22,14 @@ Accept: application/json
 ### 2. AUTHENTICATION
 ### --------------------------------------------------------------------
 
+### Guest session (no account, no body) – captures token into @guestToken
+# @name guest
+POST {{baseUrl}}/api/auth/guest
+Accept: application/json
+
+### Store the guest token
+@guestToken = {{guest.response.body.token}}
+
 ### Login (captures token into @authToken variable)
 # @name login
 POST {{baseUrl}}/api/auth/login
