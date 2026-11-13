@@ -84,6 +84,11 @@ public class AuthService {
 
         User user = maybeUser.get();
 
+        if (user.isGuest()) {
+            Crypto.fakeVerify(req.password()); // timing parity
+            throw new InvalidCredentialsException();
+        }
+
         if (user.isLocked(now)) {
             throw new TooManyAttemptsException(config.auth().lockMinutes());
         }
@@ -138,10 +143,34 @@ public class AuthService {
         Session session = maybeSession.get();
         return new SessionUser(
                 session.userId(),
-                session.email(),
+                session.isGuest() ? null : session.email(),
                 session.isAgeVerified(),
                 session.hasAcceptedAllTerms(requiredCount),
-                session.isAdmin()
+                session.isAdmin(),
+                session.isGuest()
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Guest visitor session (ADR-0023 alignment)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Establishes an anonymous visitor session with adult self-declaration and current
+     * terms acceptances automatically confirmed for the visitor gate.
+     */
+    public LoginResponse startGuestSession(String clientIp) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime expiresAt = now.plusHours(config.session().ttlHours());
+        String rawToken = Crypto.randomToken();
+        String tokenHash = Crypto.sha256Hex(rawToken);
+
+        Session session = users.createGuestSession(tokenHash, clientIp, now, expiresAt, config.legal().versions());
+
+        return new LoginResponse(
+                new SessionUser(session.userId(), null, true, true, false, true),
+                rawToken,
+                expiresAt.toString()
         );
     }
 

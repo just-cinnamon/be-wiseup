@@ -17,8 +17,16 @@ public record User(
         OffsetDateTime ageVerifiedAt,
         String ageMethod,
         String ageDeclaredIp,
-        boolean isAdmin
+        boolean isAdmin,
+        boolean isGuest
 ) {
+
+    public User(String id, String email, String passwordHash, OffsetDateTime createdAt,
+                int failedCount, OffsetDateTime lockedUntil, OffsetDateTime ageVerifiedAt,
+                String ageMethod, String ageDeclaredIp, boolean isAdmin) {
+        this(id, email, passwordHash, createdAt, failedCount, lockedUntil, ageVerifiedAt,
+                ageMethod, ageDeclaredIp, isAdmin, false);
+    }
 
     /** Whether the account is currently locked for brute-force protection. */
     public boolean isLocked(OffsetDateTime now) {

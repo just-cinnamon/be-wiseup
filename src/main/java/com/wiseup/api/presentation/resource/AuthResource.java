@@ -18,7 +18,6 @@ import jakarta.ws.rs.core.*;
  */
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
 
     @Inject
@@ -41,6 +40,7 @@ public class AuthResource {
      */
     @POST
     @Path("/login")
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response login(LoginRequest req, @Context ContainerRequestContext ctx) {
         String clientIp = resolveClientIp(headers);
         LoginResponse result = authService.login(req, clientIp);
@@ -49,6 +49,28 @@ public class AuthResource {
         try {
             userRepository.recordAccessLog(result.user().id(), clientIp);
         } catch (Exception ignored) { /* access-log failure must not block login */ }
+
+        return Response.ok(result)
+                .cacheControl(noStore())
+                .build();
+    }
+
+    /**
+     * POST /api/auth/guest
+     * Open (no auth required).
+     * Opens an anonymous visitor session with adult self-declaration and current terms
+     * acceptances recorded atomically.
+     */
+    @POST
+    @Path("/guest")
+    public Response guest(@Context ContainerRequestContext ctx) {
+        String clientIp = resolveClientIp(headers);
+        LoginResponse result = authService.startGuestSession(clientIp);
+
+        // Record access log (Marco Civil da Internet art.15) – best-effort
+        try {
+            userRepository.recordAccessLog(result.user().id(), clientIp);
+        } catch (Exception ignored) { /* access-log failure must not block guest session */ }
 
         return Response.ok(result)
                 .cacheControl(noStore())
