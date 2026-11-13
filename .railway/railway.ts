@@ -9,7 +9,7 @@ export default defineRailway(() => {
     build: { buildEnvironment: "V3", builder: "DOCKERFILE", dockerfilePath: "Dockerfile" },
     healthcheck: "/api/health/live",
     healthcheckTimeout: 300,
-    replicas: { "asia-southeast1-eqsg3a": 1 },
+    replicas: { "us-east4-eqdc4a": 1 },
   });
 
   return project("content-tenderness", {
